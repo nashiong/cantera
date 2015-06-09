@@ -712,7 +712,7 @@ void RedlichKwongMFTP::setState_UV(doublereal u, doublereal v, doublereal dTtol)
     }
 
 
-void ThermoPhase::setState_HPorUV(doublereal Htarget, doublereal p,
+void RedlichKwongMFTP::setState_HPorUV(doublereal Htarget, doublereal p,
                                       doublereal dTtol, bool doUV)
 {
     doublereal dt;
