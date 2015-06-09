@@ -196,7 +196,7 @@ void ThermoPhase::setState_PY(doublereal p, doublereal* y)
 void ThermoPhase::setState_HP(doublereal Htarget, doublereal p,
                               doublereal dTtol)
 {
-    setState_HPorUV(Htarget, p, dTtol, true);//false);
+    setState_HPorUV(Htarget, p, dTtol, false);
 }
 
 void ThermoPhase::setState_UV(doublereal u, doublereal v, doublereal dTtol)
