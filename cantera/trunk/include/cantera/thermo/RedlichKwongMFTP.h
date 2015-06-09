@@ -131,6 +131,20 @@ public:
      */
     virtual doublereal pressure() const;
 
+    //! Set the specific internal energy (J/kg) and specific volume (m^3/kg).
+    /*!
+     * This function fixes the internal state of the phase so that
+     * the specific internal energy and specific volume have the value of the input parameters.
+     *
+     * @param u    specific internal energy (J/kg)
+     * @param v    specific volume (m^3/kg).
+     * @param tol  Optional parameter setting the tolerance of the calculation.
+     *             Important for some applications where numerical Jacobians
+     *             are being calculated.Defaults to 1.0E-4
+     */
+    virtual void setState_UV(doublereal u, doublereal v, doublereal tol = 1.e-4);
+
+
     // @}
 
 protected:
@@ -473,6 +487,19 @@ private:
      *  @param pureFluidParam   XML_Node for the cross fluid parameters
      */
     void readXMLCrossFluid(XML_Node& pureFluidParam);
+
+    //! Carry out work in HP and UV calculations.
+    /*!
+     * @param h     Specific enthalpy or internal energy (J/kg)
+     * @param p     Pressure (Pa) or specific volume (m^3/kg)
+     * @param tol   Optional parameter setting the tolerance of the calculation.
+     *              Defaults to 1.0E-4. Important for some applications where
+     *              numerical Jacobians are being calculated.
+     * @param doUV  True if solving for UV, false for HP.
+     */
+    void setState_HPorUV(doublereal h, doublereal p,
+                         doublereal tol = 1.e-4, bool doUV = false);
+
 
 private:
     //!  @internal Initialize the internal lengths in this object.
