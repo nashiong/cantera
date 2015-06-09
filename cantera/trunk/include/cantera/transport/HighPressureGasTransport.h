@@ -14,7 +14,7 @@
 namespace Cantera
 {
 
-//! Class MultiTransport implements transport properties for
+//! Class HighPressureGasTransport implements transport properties for
 //! high pressure gas mixtures.
 /*!
  * The implementation employs a method of corresponding states, using
