@@ -705,6 +705,203 @@ void RedlichKwongMFTP::setToEquilState(const doublereal* mu_RT)
     setState_PX(pres, &m_pp[0]);
 }
 
+
+void RedlichKwongMFTP::setState_UV(doublereal u, doublereal v, doublereal dTtol)
+    {
+        setState_HPorUV(u, v, dTtol, true);
+    }
+
+
+void ThermoPhase::setState_HPorUV(doublereal Htarget, doublereal p,
+                                      doublereal dTtol, bool doUV)
+{
+    doublereal dt;
+    doublereal v = 0.0;
+
+    // Assign the specific volume or pressure and make sure it's positive
+    if (doUV) {
+        doublereal v = p;
+        if (v < 1.0E-300) {
+            throw CanteraError("setState_HPorUV (UV)",
+                                "Input specific volume is too small or negative. v = " + fp2str(v));
+        }
+        setDensity(1.0/v);
+    } else {
+        if (p < 1.0E-300) {
+            throw CanteraError("setState_HPorUV (HP)",
+                                "Input pressure is too small or negative. p = " + fp2str(p));
+        }
+        setPressure(p);
+    }
+    double Tmax = maxTemp() + 0.1;
+    double Tmin = minTemp() - 0.1;
+
+    // Make sure we are within the temperature bounds at the start
+    // of the iteration
+    double Tnew = temperature();
+    double Tinit = Tnew;
+    if (Tnew > Tmax) {
+        Tnew = Tmax - 1.0;
+    } else if (Tnew < Tmin) {
+        Tnew = Tmin + 1.0;
+    }
+    if (Tnew != Tinit) {
+        setState_conditional_TP(Tnew, p, !doUV);
+    }
+
+    double Hnew = (doUV) ? intEnergy_mass() : enthalpy_mass();
+    double Cpnew = (doUV) ? cv_mass() : cp_mass();
+    double Htop = Hnew;
+    double Ttop = Tnew;
+    double Hbot = Hnew;
+    double Tbot = Tnew;
+
+    bool ignoreBounds = false;
+    // Unstable phases are those for which
+    // cp < 0.0. These are possible for cases where
+    // we have passed the spinodal curve.
+    bool unstablePhase = false;
+    // Counter indicating the last temperature point where the
+    // phase was unstable
+    double Tunstable = -1.0;
+    bool unstablePhaseNew = false;
+
+    // Newton iteration
+    for (int n = 0; n < 500; n++) {
+        double Told = Tnew;
+        double Hold = Hnew;
+        double cpd = Cpnew;
+        if (cpd < 0.0) {
+            unstablePhase = true;
+            Tunstable = Tnew;
+        }
+        // limit step size to 100 K
+        dt = clip((Htarget - Hold)/cpd, -100.0, 100.0);
+
+        // Calculate the new T
+        Tnew = Told + dt;
+
+        // Limit the step size so that we are convergent
+        // This is the step that makes it different from a
+        // Newton's algorithm
+        if ((dt > 0.0 && unstablePhase) || (dt <= 0.0 && !unstablePhase)) {
+            if (Hbot < Htarget && Tnew < (0.75 * Tbot + 0.25 * Told)) {
+                dt = 0.75 * (Tbot - Told);
+                Tnew = Told + dt;
+            }
+        } else if (Htop > Htarget && Tnew > (0.75 * Ttop + 0.25 * Told)) {
+            dt = 0.75 * (Ttop - Told);
+            Tnew = Told + dt;
+        }
+
+        // Check Max and Min values
+        if (Tnew > Tmax && !ignoreBounds) {
+            setState_conditional_TP(Tmax, p, !doUV);
+            double Hmax = (doUV) ? intEnergy_mass() : enthalpy_mass();
+            if (Hmax >= Htarget) {
+                if (Htop < Htarget) {
+                    Ttop = Tmax;
+                    Htop = Hmax;
+                }
+            } else {
+                Tnew = Tmax + 1.0;
+                ignoreBounds = true;
+            }
+        }
+        if (Tnew < Tmin && !ignoreBounds) {
+            setState_conditional_TP(Tmin, p, !doUV);
+            double Hmin = (doUV) ? intEnergy_mass() : enthalpy_mass();
+            if (Hmin <= Htarget) {
+                if (Hbot > Htarget) {
+                    Tbot = Tmin;
+                    Hbot = Hmin;
+                }
+            } else {
+                Tnew = Tmin - 1.0;
+                ignoreBounds = true;
+            }
+        }
+
+        // Try to keep phase within its region of stability
+        // -> Could do a lot better if I calculate the
+        //    spinodal value of H.
+        for (int its = 0; its < 10; its++) {
+            Tnew = Told + dt;
+            if (Tnew < Told / 3.0) {
+                Tnew = Told / 3.0;
+                dt = -2.0 * Told / 3.0;
+            }
+            setState_conditional_TP(Tnew, p, !doUV);
+            if (doUV) {
+                Hnew = intEnergy_mass();
+                Cpnew = cv_mass();
+            } else {
+                Hnew = enthalpy_mass();
+                Cpnew = cp_mass();
+            }
+            if (Cpnew < 0.0) {
+                unstablePhaseNew = true;
+                Tunstable = Tnew;
+            } else {
+                unstablePhaseNew = false;
+                break;
+            }
+            if (unstablePhase == false && unstablePhaseNew == true) {
+                dt *= 0.25;
+            }
+        }
+
+        if (Hnew == Htarget) {
+            return;
+        } else if (Hnew > Htarget && (Htop < Htarget || Hnew < Htop)) {
+            Htop = Hnew;
+            Ttop = Tnew;
+        } else if (Hnew < Htarget && (Hbot > Htarget || Hnew > Hbot)) {
+            Hbot = Hnew;
+            Tbot = Tnew;
+        }
+        // Convergence in H
+        double Herr = Htarget - Hnew;
+        double acpd = std::max(fabs(cpd), 1.0E-5);
+        double denom = std::max(fabs(Htarget), acpd * dTtol);
+        double HConvErr = fabs((Herr)/denom);
+        if (HConvErr < 0.00001 *dTtol || fabs(dt) < dTtol) {
+            return;
+        }
+    }
+    // We are here when there hasn't been convergence
+    /*
+     * Formulate a detailed error message, since questions seem to
+     * arise often about the lack of convergence.
+     */
+    string ErrString =  "No convergence in 500 iterations\n";
+    if (doUV) {
+        ErrString += "\tTarget Internal Energy  = " + fp2str(Htarget) + "\n";
+        ErrString += "\tCurrent Specific Volume = " + fp2str(v) + "\n";
+        ErrString += "\tStarting Temperature    = " + fp2str(Tinit) + "\n";
+        ErrString += "\tCurrent Temperature     = " + fp2str(Tnew) + "\n";
+        ErrString += "\tCurrent Internal Energy = " + fp2str(Hnew) + "\n";
+        ErrString += "\tCurrent Delta T         = " + fp2str(dt) + "\n";
+    } else {
+        ErrString += "\tTarget Enthalpy         = " + fp2str(Htarget) + "\n";
+        ErrString += "\tCurrent Pressure        = " + fp2str(p) + "\n";
+        ErrString += "\tStarting Temperature    = " + fp2str(Tinit) + "\n";
+        ErrString += "\tCurrent Temperature     = " + fp2str(Tnew) + "\n";
+        ErrString += "\tCurrent Enthalpy        = " + fp2str(Hnew) + "\n";
+        ErrString += "\tCurrent Delta T         = " + fp2str(dt) + "\n";
+    }
+    if (unstablePhase) {
+        ErrString += "\t  - The phase became unstable (Cp < 0) T_unstable_last = "
+        + fp2str(Tunstable) + "\n";
+    }
+    if (doUV) {
+        throw CanteraError("setState_HPorUV (UV)", ErrString);
+    } else {
+        throw CanteraError("setState_HPorUV (HP)", ErrString);
+    }
+}
+
+
 void RedlichKwongMFTP::initLengths()
 {
     a_vec_Curr_.resize(m_kk * m_kk, 0.0);
