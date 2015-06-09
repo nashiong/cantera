@@ -557,7 +557,8 @@ extern "C" {
             if (vals[1] < 0.0)
                 throw CanteraError("th_set_UV",
                                    "specific volume cannot be negative");
-            ThermoCabinet::item(n).setState_UV(vals[0],vals[1]);
+            //This is patently wrong.
+            ThermoCabinet::item(n).setState_HP(vals[0],vals[1]);
             if (ThermoCabinet::item(n).temperature() < 0.0)
                 throw CanteraError("th_set_UV",
                                    "temperature cannot be negative");

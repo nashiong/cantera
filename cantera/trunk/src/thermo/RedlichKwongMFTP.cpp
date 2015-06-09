@@ -705,7 +705,7 @@ void RedlichKwongMFTP::setToEquilState(const doublereal* mu_RT)
     setState_PX(pres, &m_pp[0]);
 }
 
-
+/*
 void RedlichKwongMFTP::setState_UV(doublereal u, doublereal v, doublereal dTtol)
     {
         setState_HPorUV(u, v, dTtol, true);
@@ -870,10 +870,10 @@ void RedlichKwongMFTP::setState_HPorUV(doublereal Htarget, doublereal p,
         }
     }
     // We are here when there hasn't been convergence
-    /*
-     * Formulate a detailed error message, since questions seem to
-     * arise often about the lack of convergence.
-     */
+    //
+     // Formulate a detailed error message, since questions seem to
+     // arise often about the lack of convergence.
+     //
     string ErrString =  "No convergence in 500 iterations\n";
     if (doUV) {
         ErrString += "\tTarget Internal Energy  = " + fp2str(Htarget) + "\n";
@@ -899,7 +899,7 @@ void RedlichKwongMFTP::setState_HPorUV(doublereal Htarget, doublereal p,
     } else {
         throw CanteraError("setState_HPorUV (HP)", ErrString);
     }
-}
+}*/
 
 
 void RedlichKwongMFTP::initLengths()
