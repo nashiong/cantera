@@ -211,7 +211,7 @@ doublereal RedlichKwongMFTP::cp_mole() const
 
 doublereal RedlichKwongMFTP::cv_mole() const
 {
-    throw CanteraError("", "unimplemented");
+    //throw CanteraError("", "unimplemented");
     return cp_mole() - GasConstant;
 }
 

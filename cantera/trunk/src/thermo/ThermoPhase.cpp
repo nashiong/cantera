@@ -201,7 +201,7 @@ void ThermoPhase::setState_HP(doublereal Htarget, doublereal p,
 
 void ThermoPhase::setState_UV(doublereal u, doublereal v, doublereal dTtol)
 {
-    setState_HPorUV(u, v, dTtol, false);//true);
+    setState_HPorUV(u, v, dTtol, true);
 }
 
 void ThermoPhase::setState_conditional_TP(doublereal t, doublereal p, bool set_p)
